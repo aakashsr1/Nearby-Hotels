@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NearbyHotels</title>
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <link rel="stylesheet" href="styles.css" />
+  
+  <link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo-emoji">🏨</span>
+      <span class="brand-text">NearbyHotels</span>
+    </div>
+  </header>
+
+  <main class="page">
+    <!-- Hero card -->
+    <section class="card hero">
+      <h1>Find Hotels Near You</h1>
+      <p>
+        Tap the button below, allow location access, and we’ll show real hotels
+        within a few kilometers of where you are.
+      </p>
+      <button id="findBtn" class="find-btn">📍 Find Nearby Hotels</button>
+      <p id="status" class="status-text">Waiting for search…</p>
+    </section>
+
+    <!-- Map card -->
+    <section class="card">
+      <h2>Map</h2>
+      <div id="map"></div>
+    </section>
+
+    <!-- Hotels list -->
+    <section class="card">
+      <h2>Nearby Hotels</h2>
+      <div id="hotelsList" class="hotels-list">
+        <!-- Filled by JS -->
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Made by Aakash Srivastava – Class 10th A
+  </footer>
+
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <!-- Your script -->
+  <script src="script.js"></script>
+</body>
+</html>
