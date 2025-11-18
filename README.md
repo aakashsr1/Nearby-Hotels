@@ -1,1 +1,1 @@
-https://nearbyhotels.netlify.app/
+https://nearby-hotels.netlify.app/
