@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NearbyHotels – CWSN Mode</title>
+
+  <link rel="stylesheet" href="cwsn.css" />
+  <link rel="stylesheet" href="leaflet.css" />
+  <script defer src="leaflet.js"></script>
+</head>
+
+<body>
+  <a href="#main" class="skip-link">Skip to main content</a>
+
+  <header class="topbar" role="banner" aria-label="CWSN header">
+    <div class="brand">
+      <img src="logo.png" class="logo" alt="NearbyHotels logo" />
+      <span>NearbyHotels <span class="sr-only">CWSN mode</span></span>
+    </div>
+
+    <nav class="top-controls" role="navigation" aria-label="CWSN controls">
+      <a href="index.html" class="theme-btn" aria-label="Switch to normal mode">Normal</a>
+      <button id="themeToggle" class="theme-btn" aria-pressed="false" aria-label="Toggle dark mode">Dark</button>
+      <button id="contrastToggle" class="theme-btn" aria-pressed="false" aria-label="Enable high contrast">High Contrast</button>
+    </nav>
+  </header>
+
+  <main id="main" role="main" tabindex="-1">
+    <section class="card" aria-label="Find nearby hotels">
+      <h1>Find a Hotel Near You</h1>
+
+      <ol class="steps">
+        <li>Tap the <strong>Find Nearby Hotels</strong> button.</li>
+        <li>When your phone asks, tap <strong>Allow Location</strong>.</li>
+        <li>We will show the <strong>nearest hotels</strong> around you.</li>
+      </ol>
+
+      <button id="findBtn" class="primary-btn" aria-label="Find nearby hotels using your current location"> Find Nearby Hotels</button>
+
+      <p id="status" class="status" role="status" aria-live="polite" tabindex="-1">
+        Getting your live location...
+      </p>
+    </section>
+
+    <section class="card" aria-label="Map showing hotels">
+      <h2>Map</h2>
+      <p class="map-help">Blue pin is <strong>you</strong>. Other pins are <strong>hotels</strong>.</p>
+      <div id="map" class="map-box" role="region" aria-label="Map of your area with hotel locations"></div>
+    </section>
+
+    <section class="card" aria-label="Nearby hotels list">
+      <h2>Nearby Hotels</h2>
+      <p class="map-help">Tap <strong>Open in Maps</strong> to open directions.</p>
+      <div id="hotelsList" class="hotels-list" role="list" aria-label="Nearby hotels"></div>
+    </section>
+  </main>
+
+  <footer>Made by Aakash Srivastava  Class 10 A</footer>
+
+  <script defer src="cwsn.js"></script>
+</body>
+</html>

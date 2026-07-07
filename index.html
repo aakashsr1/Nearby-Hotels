@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0" />
+  <title>NearbyHotels</title>
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="leaflet.css" />
+</head>
+<body>
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="brand">
+      <img src="logo.png" class="logo" alt="NearbyHotels logo" />
+      <span>NearbyHotels</span>
+    </div>
+
+    <div class="top-buttons">
+      <!-- CWSN BUTTON (right top corner) -->
+      <a href="cwsn.html" class="cwsn-btn">CWSN</a>
+
+      <!-- THEME TOGGLE -->
+      <button id="themeToggle" class="theme-btn">Dark</button>
+    </div>
+  </header>
+
+  <!-- HERO CARD -->
+  <section class="hero card">
+    <h1>Find Hotels Near You</h1>
+    <p>
+      Tap the button below, allow location access, and
+      we’ll show real hotels within a few kilometers of where you are.
+    </p>
+
+    <button id="findBtn" class="primary-btn">
+      📍 Find Nearby Hotels
+    </button>
+
+    <p id="status" class="status">Getting your live location...</p>
+  </section>
+
+  <!-- MAP CARD -->
+  <section class="card">
+    <h2>Map</h2>
+    <div id="map" class="map-box"></div>
+  </section>
+
+  <!-- HOTELS LIST -->
+  <section class="card">
+    <h2>Nearby Hotels</h2>
+    <div id="hotelsList"></div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    Made by Aakash Srivastava ✧ Class 10th A
+  </footer>
+
+  <script src="leaflet.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

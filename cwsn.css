@@ -1,0 +1,65 @@
+/* Final CWSN.CSS - stable, theme variables, HC inverted support */
+@import url("styles.css");
+
+/* accessibility helpers */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.skip-link{position:absolute;left:-999px;top:8px;background:#ffd54f;color:#000;padding:8px 12px;border-radius:6px;z-index:2000}
+.skip-link:focus{left:12px}
+
+/* header forced horizontal */
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#0f1a2e;border-radius:0 0 12px 12px;gap:16px}
+.brand{display:flex;align-items:center;gap:12px;color:var(--cwsn-text,#fff)}
+.brand img.logo{width:40px;height:40px;border-radius:8px}
+.top-controls{display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:nowrap;white-space:nowrap}
+
+/* pill buttons inherit current color */
+.theme-btn{padding:8px 14px;border-radius:22px;background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.18);font-weight:600;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:inherit;text-decoration:none}
+
+/* hide any old controls */
+.cwsn-controls,#speechToggle,.text-size-controls{display:none!important}
+
+/* base card & variable-driven colors */
+:root{--cwsn-bg:#f0f4fb;--cwsn-text:#111;--card-bg:#fff}
+body{background:var(--cwsn-bg);color:var(--cwsn-text)}
+.card{background:var(--card-bg);color:var(--cwsn-text);margin:16px;padding:20px;border-radius:18px;line-height:1.6;box-shadow:0 6px 18px rgba(0,0,0,0.18)}
+h1{font-size:28px;margin-bottom:10px}
+h2{font-size:20px;margin-bottom:8px}
+.steps{margin:12px 0 16px;padding-left:20px;font-size:18px}
+
+.primary-btn{width:100%;padding:16px;font-size:18px;font-weight:700;margin-top:12px;border-radius:14px;background:linear-gradient(to right,#ff7a00,#ff3d00);color:white;border:none}
+.status{margin-top:12px;opacity:0.95;font-size:16px}
+
+/* map */
+.map-box{width:100%;height:520px;background:#e8ebf2;border-radius:14px;margin-top:10px;overflow:hidden}
+/* ensure tiles don't blend oddly */
+.leaflet-container .leaflet-tile{mix-blend-mode:normal!important;opacity:1!important}
+
+/* hotels */
+.hotels-list{display:grid;gap:12px;margin-top:10px}
+.hotel{background:#0f1724;padding:12px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid rgba(255,255,255,0.06)}
+.hotel-title{font-size:18px;font-weight:700}
+.hotel-distance{opacity:0.9;font-size:15px}
+.open-btn{padding:10px 14px;background:#e3ebff;color:#000;border-radius:12px;border:none}
+
+/* focus outlines */
+button:focus,a:focus,.hotel:focus{outline:3px dashed #ffd54f;outline-offset:3px}
+
+/* DARK theme (non-HC) */
+body.dark{--cwsn-bg:#0c1521;--cwsn-text:#f7fbff;--card-bg:#172033}
+
+/* HIGH CONTRAST (black bg / white text) */
+body.high-contrast{--cwsn-bg:#000;--cwsn-text:#fff;--card-bg:#000}
+body.high-contrast .card{border:3px solid #fff;box-shadow:none}
+body.high-contrast .primary-btn{background:#fff;color:#000}
+body.high-contrast .hotel{background:#000;border:2px solid #fff}
+body.high-contrast .open-btn{background:#fff;color:#000}
+
+/* HC inverted (white bg / black text) used when HC + toggled Dark */
+body.high-contrast.hc-inverted{--cwsn-bg:#fff;--cwsn-text:#000;--card-bg:#fff}
+body.high-contrast.hc-inverted .card{border:3px solid #000;box-shadow:none}
+body.high-contrast.hc-inverted .primary-btn{background:#000;color:#fff}
+body.high-contrast.hc-inverted .hotel{background:#fff;border:2px solid #000}
+body.high-contrast.hc-inverted .open-btn{background:#000;color:#fff}
+
+/* tiny responsive */
+@media(max-width:520px){.card{margin:12px;padding:16px}.map-box{height:480px}h1{font-size:24px}.theme-btn{padding:8px 10px;font-size:14px}}
