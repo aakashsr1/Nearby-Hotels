@@ -4,9 +4,12 @@ window.addEventListener("DOMContentLoaded", function () {
   const themeLabel=themeToggle?.querySelector(".theme-label"), themeIcon=themeToggle?.querySelector(".theme-icon");
   let map=null,userMarker=null,hotelMarkers=[],latestLocation=null,currentTileLayer=null,locationWatchId=null;
 
-  const OVERPASS_URL="https://overpass-api.de/api/interpreter";
   const HOTEL_RADIUS=3000;
   const MAP_TILES="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+  const OVERPASS_ENDPOINTS=[
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter"
+  ];
 
   function storageGet(key){try{return localStorage.getItem(key)}catch(e){return null}}
   function storageSet(key,val){try{localStorage.setItem(key,val)}catch(e){}}
@@ -23,16 +26,13 @@ window.addEventListener("DOMContentLoaded", function () {
   }
 
   function initTheme(){
-    const saved=storageGet("theme");
-    document.body.classList.toggle("dark",saved==="dark");
+    document.body.classList.toggle("dark",storageGet("theme")==="dark");
     applyTheme();
   }
 
   function updateMapTiles(){
     if(!map || typeof L==="undefined") return;
-    if(!currentTileLayer){
-      currentTileLayer=L.tileLayer(MAP_TILES,{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(map);
-    }
+    if(!currentTileLayer) currentTileLayer=L.tileLayer(MAP_TILES,{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(map);
     map.getContainer().classList.toggle("map-dark",document.body.classList.contains("dark"));
     setTimeout(()=>map.invalidateSize(true),100);
   }
@@ -58,74 +58,124 @@ window.addEventListener("DOMContentLoaded", function () {
   function updateUserMarker(lat,lon,center){
     latestLocation={lat,lon};
     if(!map)return;
-    if(userMarker)userMarker.setLatLng([lat,lon]);
+    if(userMarker) userMarker.setLatLng([lat,lon]);
     else userMarker=L.marker([lat,lon]).addTo(map).bindPopup("You are here");
-    if(center)map.setView([lat,lon],15,{animate:true});
+    if(center) map.setView([lat,lon],15,{animate:true});
   }
 
   function getCurrentLocation(center,onSuccess){
-    if(!navigator.geolocation){statusEl.textContent="Geolocation is not supported on this device.";onSuccess?.(null);return}
+    if(!navigator.geolocation){
+      statusEl.textContent="Geolocation is not supported on this device.";
+      onSuccess?.(null); return;
+    }
     navigator.geolocation.getCurrentPosition(pos=>{
       const l={lat:pos.coords.latitude,lon:pos.coords.longitude,accuracy:pos.coords.accuracy};
-      updateUserMarker(l.lat,l.lon,center);onSuccess?.(l);
+      updateUserMarker(l.lat,l.lon,center); onSuccess?.(l);
     },()=>{
       navigator.geolocation.getCurrentPosition(pos=>{
         const l={lat:pos.coords.latitude,lon:pos.coords.longitude,accuracy:pos.coords.accuracy};
-        updateUserMarker(l.lat,l.lon,center);onSuccess?.(l);
-      },()=>{statusEl.textContent="Could not get your location. Please allow location access.";onSuccess?.(null)},
-      {enableHighAccuracy:true,timeout:10000,maximumAge:5000});
+        updateUserMarker(l.lat,l.lon,center); onSuccess?.(l);
+      },()=>{
+        statusEl.textContent="Could not get your location. Please allow location access.";
+        onSuccess?.(null);
+      },{enableHighAccuracy:true,timeout:10000,maximumAge:5000});
     },{enableHighAccuracy:false,timeout:5000,maximumAge:60000});
   }
 
   function startLocationUpdates(){
     if(!navigator.geolocation||locationWatchId!==null)return;
-    locationWatchId=navigator.geolocation.watchPosition(pos=>updateUserMarker(pos.coords.latitude,pos.coords.longitude,false),()=>{},
-      {enableHighAccuracy:true,maximumAge:10000,timeout:10000});
+    locationWatchId=navigator.geolocation.watchPosition(pos=>{
+      updateUserMarker(pos.coords.latitude,pos.coords.longitude,false);
+    },()=>{},{enableHighAccuracy:true,maximumAge:10000,timeout:10000});
   }
 
   function locateMe(){
-    locateBtn.disabled=true;statusEl.textContent="Finding your location…";
-    if(latestLocation&&map)map.setView([latestLocation.lat,latestLocation.lon],15,{animate:true});
+    if(locateBtn) locateBtn.disabled=true;
+    statusEl.textContent="Finding your location…";
     getCurrentLocation(true,l=>{
-      locateBtn.disabled=false;
-      if(l)statusEl.textContent="You're here • accuracy about "+Math.round(l.accuracy||0)+" m.";
+      if(l) statusEl.textContent="You're here • accuracy about "+Math.round(l.accuracy||0)+" m.";
+      if(locateBtn) locateBtn.disabled=false;
     });
   }
   locateBtn?.addEventListener("click",locateMe);
 
-  getCurrentLocation(false,l=>{if(l){statusEl.textContent="Location ready. Tap Find nearby hotels.";startLocationUpdates()}});
-
-  findBtn?.addEventListener("click",()=>{
-    findBtn.disabled=true;statusEl.textContent="Finding your location…";
-    getCurrentLocation(true,l=>{if(!l){findBtn.disabled=false;return}fetchNearbyHotels(l.lat,l.lon)});
+  // Center the map on the user's location as soon as the page gets it.
+  getCurrentLocation(true,l=>{
+    if(l){
+      statusEl.textContent="Location ready. Tap Find nearby hotels.";
+      startLocationUpdates();
+    }
   });
 
-  function fetchNearbyHotels(lat,lon){
+  findBtn?.addEventListener("click",()=>{
+    findBtn.disabled=true;
+    statusEl.textContent="Finding your location…";
+    getCurrentLocation(true,l=>{
+      if(!l){findBtn.disabled=false;return}
+      fetchNearbyHotels(l.lat,l.lon);
+    });
+  });
+
+  async function fetchOverpass(query){
+    let lastError=null;
+    for(const endpoint of OVERPASS_ENDPOINTS){
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),12000);
+      try{
+        const url=endpoint+"?data="+encodeURIComponent(query);
+        const response=await fetch(url,{method:"GET",signal:controller.signal,headers:{Accept:"application/json"}});
+        if(!response.ok) throw new Error("HTTP "+response.status);
+        const data=await response.json();
+        clearTimeout(timer);
+        return data;
+      }catch(error){
+        clearTimeout(timer);
+        lastError=error;
+      }
+    }
+    throw lastError||new Error("No Overpass endpoint available");
+  }
+
+  async function fetchNearbyHotels(lat,lon){
     statusEl.textContent="Searching nearby hotels…";
-    const query='[out:json][timeout:10];(node["tourism"="hotel"](around:'+HOTEL_RADIUS+','+lat+','+lon+');way["tourism"="hotel"](around:'+HOTEL_RADIUS+','+lat+','+lon+'););out center;';
-    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),11000);
-    fetch(OVERPASS_URL,{method:"POST",body:query,signal:controller.signal})
-      .then(r=>{if(!r.ok)throw new Error("request");return r.json()})
-      .then(data=>{
-        const hotels=(data.elements||[]).filter(e=>e.tags?.tourism==="hotel").map(e=>({lat:(e.center&&e.center.lat)||e.lat,lon:(e.center&&e.center.lon)||e.lon,name:e.tags.name||"Unnamed Hotel"})).filter(h=>Number.isFinite(h.lat)&&Number.isFinite(h.lon));
-        renderHotels(lat,lon,hotels);
-      })
-      .catch(e=>{statusEl.textContent=e.name==="AbortError"?"Hotel search took too long. Please try again.":"Could not load hotel data. Please try again."})
-      .finally(()=>{clearTimeout(timer);findBtn.disabled=false});
+    const query='[out:json][timeout:15];(node["tourism"="hotel"](around:'+HOTEL_RADIUS+','+lat+','+lon+');way["tourism"="hotel"](around:'+HOTEL_RADIUS+','+lat+','+lon+'););out center;';
+    try{
+      const data=await fetchOverpass(query);
+      const hotels=(data.elements||[])
+        .filter(e=>e.tags?.tourism==="hotel")
+        .map(e=>({lat:(e.center&&e.center.lat)||e.lat,lon:(e.center&&e.center.lon)||e.lon,name:e.tags.name||"Unnamed Hotel"}))
+        .filter(h=>Number.isFinite(h.lat)&&Number.isFinite(h.lon));
+      renderHotels(lat,lon,hotels);
+    }catch(error){
+      console.error("Hotel search failed:",error);
+      statusEl.textContent="Hotel search is temporarily unavailable. Please try again.";
+    }finally{
+      findBtn.disabled=false;
+    }
   }
 
   function renderHotels(userLat,userLon,hotels){
     hotelMarkers.forEach(m=>map?.removeLayer(m));hotelMarkers=[];hotelsListEl.innerHTML="";
-    if(!hotels.length){statusEl.textContent="No hotels found within 3 km. Try again in a busier area.";return}
-    const visible=hotels.map(h=>({...h,dist:distanceInKm(userLat,userLon,h.lat,h.lon)})).sort((a,b)=>a.dist-b.dist).slice(0,5);
+    if(!hotels.length){
+      statusEl.textContent="No hotels found within 3 km. Try again in a busier area.";
+      return;
+    }
+    const visible=hotels.map(h=>({...h,dist:distanceInKm(userLat,userLon,h.lat,h.lon)}))
+      .sort((a,b)=>a.dist-b.dist).slice(0,5);
+
     if(map){
       const bounds=L.latLngBounds(visible.map(h=>[h.lat,h.lon]));
       if(userMarker)bounds.extend(userMarker.getLatLng());
       map.fitBounds(bounds.pad(.2),{maxZoom:16,animate:true});
     }
-    const hotelIcon=L.icon({iconUrl:"images/hotel-icon.png",iconRetinaUrl:"images/hotel-icon.png",iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34]});
+
+    const hotelIcon=L.icon({
+      iconUrl:"images/hotel-icon.png",iconRetinaUrl:"images/hotel-icon.png",
+      iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34]
+    });
+
     visible.forEach(h=>{
-      if(map)hotelMarkers.push(L.marker([h.lat,h.lon],{icon:hotelIcon}).addTo(map).bindPopup(h.name));
+      if(map) hotelMarkers.push(L.marker([h.lat,h.lon],{icon:hotelIcon}).addTo(map).bindPopup(h.name));
       const item=document.createElement("div");item.className="hotel";
       const info=document.createElement("div");info.className="hotel-info";
       const title=document.createElement("div");title.className="hotel-title";title.textContent=h.name;
@@ -138,7 +188,8 @@ window.addEventListener("DOMContentLoaded", function () {
   }
 
   function distanceInKm(a,b,c,d){
-    const r=Math.PI/180,R=6371,dl=(c-a)*r,do_=(d-b)*r,x=Math.sin(dl/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(do_/2)**2;
+    const r=Math.PI/180,R=6371,dl=(c-a)*r,do_=(d-b)*r;
+    const x=Math.sin(dl/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(do_/2)**2;
     return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
   }
 });
