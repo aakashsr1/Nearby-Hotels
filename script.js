@@ -1,4 +1,4 @@
-// NearbyHotels — fast location centering, map recentering and hotel discovery
+// NearbyHotels — location centering, theme switching and hotel discovery
 window.addEventListener("load", function () {
   const statusEl = document.getElementById("status");
   const hotelsListEl = document.getElementById("hotelsList");
@@ -6,46 +6,75 @@ window.addEventListener("load", function () {
   const locateBtn = document.getElementById("locateBtn");
   const themeToggle = document.getElementById("themeToggle");
   const themeLabel = themeToggle.querySelector(".theme-label");
+  const themeIcon = themeToggle.querySelector(".theme-icon");
 
   let map;
   let userMarker;
   let hotelMarkers = [];
   let latestLocation = null;
   let locationWatchId = null;
+  let currentTileLayer = null;
 
   const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
   const HOTEL_RADIUS = 3000;
+  const LIGHT_TILES = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+  const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
 
   /* ---------- THEME ---------- */
 
-  function setThemeLabel() {
+  function applyTheme() {
     const isDark = document.body.classList.contains("dark");
     themeLabel.textContent = isDark ? "Light" : "Dark";
+    themeIcon.textContent = isDark ? "☀" : "◐";
     themeToggle.setAttribute(
       "aria-label",
       isDark ? "Switch to light theme" : "Switch to dark theme"
     );
+
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) metaTheme.setAttribute("content", isDark ? "#070b12" : "#0b1220");
+
+    updateMapTiles();
   }
 
   function initTheme() {
     const saved = localStorage.getItem("theme");
 
-    if (saved === "dark") document.body.classList.add("dark");
-    if (saved === "light") document.body.classList.remove("dark");
+    if (saved === "dark") {
+      document.body.classList.add("dark");
+    } else if (saved === "light") {
+      document.body.classList.remove("dark");
+    } else {
+      document.body.classList.remove("dark");
+    }
 
-    setThemeLabel();
+    applyTheme();
+  }
+
+  function updateMapTiles() {
+    if (!map || typeof L === "undefined") return;
+
+    const isDark = document.body.classList.contains("dark");
+    const tileUrl = isDark ? DARK_TILES : LIGHT_TILES;
+
+    if (!currentTileLayer || currentTileLayer._url !== tileUrl) {
+      if (currentTileLayer) map.removeLayer(currentTileLayer);
+
+      currentTileLayer = L.tileLayer(tileUrl, {
+        maxZoom: 19,
+        attribution: "© OpenStreetMap contributors"
+      }).addTo(map);
+    }
+
+    setTimeout(() => map.invalidateSize(true), 100);
   }
 
   initTheme();
 
   themeToggle.addEventListener("click", function () {
-    document.body.classList.toggle("dark");
-    const isDark = document.body.classList.contains("dark");
-
+    const isDark = document.body.classList.toggle("dark");
     localStorage.setItem("theme", isDark ? "dark" : "light");
-    setThemeLabel();
-
-    if (map) setTimeout(() => map.invalidateSize(true), 150);
+    applyTheme();
   });
 
   /* ---------- MAP ---------- */
@@ -57,11 +86,7 @@ window.addEventListener("load", function () {
     }
 
     map = L.map("map").setView([20, 0], 2);
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "© OpenStreetMap contributors"
-    }).addTo(map);
+    updateMapTiles();
   }
 
   initMap();
@@ -102,23 +127,24 @@ window.addEventListener("load", function () {
 
     navigator.geolocation.getCurrentPosition(
       function (pos) {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-
-        updateUserMarker(lat, lon, shouldCenter);
-
-        if (onSuccess) onSuccess({ lat, lon, accuracy: pos.coords.accuracy });
+        const location = {
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+          accuracy: pos.coords.accuracy
+        };
+        updateUserMarker(location.lat, location.lon, shouldCenter);
+        if (onSuccess) onSuccess(location);
       },
       function () {
-        // If the fast cached/low-power request fails, retry with GPS.
         navigator.geolocation.getCurrentPosition(
           function (pos) {
-            const lat = pos.coords.latitude;
-            const lon = pos.coords.longitude;
-
-            updateUserMarker(lat, lon, shouldCenter);
-
-            if (onSuccess) onSuccess({ lat, lon, accuracy: pos.coords.accuracy });
+            const location = {
+              lat: pos.coords.latitude,
+              lon: pos.coords.longitude,
+              accuracy: pos.coords.accuracy
+            };
+            updateUserMarker(location.lat, location.lon, shouldCenter);
+            if (onSuccess) onSuccess(location);
           },
           function (err) {
             console.error(err);
@@ -159,7 +185,6 @@ window.addEventListener("load", function () {
     locateBtn.disabled = true;
     statusEl.textContent = "Finding your location…";
 
-    // Immediately use the newest known position when available.
     if (latestLocation && map) {
       map.setView([latestLocation.lat, latestLocation.lon], 16, {
         animate: true
@@ -215,7 +240,6 @@ window.addEventListener("load", function () {
   function fetchNearbyHotels(lat, lon) {
     statusEl.textContent = "Searching nearby hotels…";
 
-    // A smaller first search radius makes the first response noticeably faster.
     const query =
       '[out:json][timeout:10];(' +
       'node["tourism"="hotel"](around:' + HOTEL_RADIUS + "," + lat + "," + lon + ");" +
@@ -257,13 +281,10 @@ window.addEventListener("load", function () {
       .catch((err) => {
         console.error(err);
 
-        if (err.name === "AbortError") {
-          statusEl.textContent =
-            "Hotel search took too long. Please try again.";
-        } else {
-          statusEl.textContent =
-            "Could not load hotel data. Please try again.";
-        }
+        statusEl.textContent =
+          err.name === "AbortError"
+            ? "Hotel search took too long. Please try again."
+            : "Could not load hotel data. Please try again.";
       })
       .finally(() => {
         clearTimeout(timeoutId);
