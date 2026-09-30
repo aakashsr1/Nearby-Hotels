@@ -1,43 +1,58 @@
 window.addEventListener("DOMContentLoaded",function(){
- const body=document.body,theme=document.getElementById("themeToggle"),contrast=document.getElementById("contrastToggle");
- const status=document.getElementById("status"),find=document.getElementById("findBtn"),list=document.getElementById("hotelsList");
+ const body=document.body,theme=document.getElementById("themeToggle"),contrast=document.getElementById("contrastToggle"),status=document.getElementById("status"),find=document.getElementById("findBtn"),list=document.getElementById("hotelsList");
  let map=null,userMarker=null,currentTiles=null,hotelMarkers=[];
- const LIGHT="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",DARK="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
- const get=(k)=>{try{return localStorage.getItem(k)}catch(e){return null}},set=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+ const MAP_TILES="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+ const get=k=>{try{return localStorage.getItem(k)}catch(e){return null}},set=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+
  function updateTheme(){
   const dark=body.classList.contains("dark"),hc=body.classList.contains("high-contrast");
   theme.textContent=dark?"Light":"Dark";theme.setAttribute("aria-pressed",String(dark));
   contrast.setAttribute("aria-pressed",String(hc));
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content",dark?"#070b12":"#0b1220");
+  if(map)map.getContainer().classList.toggle("map-dark",dark&&!hc);
   updateTiles();
  }
  function updateTiles(){
   if(!map||typeof L==="undefined")return;
-  const url=body.classList.contains("dark")&&!body.classList.contains("high-contrast")?DARK:LIGHT;
-  if(!currentTiles||currentTiles._url!==url){if(currentTiles)map.removeLayer(currentTiles);currentTiles=L.tileLayer(url,{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(map)}
-  setTimeout(()=>map.invalidateSize(true),80);
+  if(!currentTiles)currentTiles=L.tileLayer(MAP_TILES,{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(map);
+  map.getContainer().classList.toggle("map-dark",body.classList.contains("dark")&&!body.classList.contains("high-contrast"));
+  setTimeout(()=>map.invalidateSize(true),100);
  }
  body.classList.toggle("dark",get("cwsn-theme")==="dark");
  body.classList.toggle("high-contrast",get("cwsn-contrast")==="on");
- updateTheme();
- theme.addEventListener("click",()=>{body.classList.toggle("dark");body.classList.remove("hc-inverted");set("cwsn-theme",body.classList.contains("dark")?"dark":"light");updateTheme()});
- contrast.addEventListener("click",()=>{const on=body.classList.toggle("high-contrast");if(on){body.classList.remove("dark");set("cwsn-theme","light")}set("cwsn-contrast",on?"on":"off");updateTheme()});
- function announce(t){status.textContent=t}
  function initMap(){
-  if(typeof L==="undefined"){announce("Map library could not load. Refresh once and try again.");return}
-  map=L.map("map",{zoomControl:true}).setView([20,0],2);updateTiles();setTimeout(()=>map.invalidateSize(true),100);
+  if(typeof L==="undefined"){status.textContent="Map library could not load. Refresh once and try again.";return}
+  map=L.map("map",{zoomControl:true}).setView([20,0],2);updateTiles();setTimeout(()=>map.invalidateSize(true),150);
  }
- initMap();
+ initMap();updateTheme();
+
+ theme.addEventListener("click",()=>{
+  body.classList.remove("hc-inverted");
+  const dark=body.classList.toggle("dark");
+  if(dark)body.classList.remove("high-contrast");
+  set("cwsn-theme",dark?"dark":"light");set("cwsn-contrast","off");updateTheme();
+ });
+ contrast.addEventListener("click",()=>{
+  const on=body.classList.toggle("high-contrast");
+  body.classList.remove("dark");body.classList.remove("hc-inverted");
+  set("cwsn-theme","light");set("cwsn-contrast",on?"on":"off");updateTheme();
+ });
+
+ function announce(t){status.textContent=t}
  function locate(cb){
   if(!navigator.geolocation){announce("Geolocation is not supported on this device.");cb?.(null);return}
-  navigator.geolocation.getCurrentPosition(p=>{const lat=p.coords.latitude,lon=p.coords.longitude;if(map){map.setView([lat,lon],15);if(userMarker)userMarker.setLatLng([lat,lon]);else userMarker=L.marker([lat,lon]).addTo(map).bindPopup("You are here")}cb?.({lat,lon})},()=>{announce("Could not get your location. Please allow location access.");cb?.(null)},{enableHighAccuracy:true,timeout:12000,maximumAge:30000})
+  navigator.geolocation.getCurrentPosition(p=>{
+   const lat=p.coords.latitude,lon=p.coords.longitude;
+   if(map){map.setView([lat,lon],15);if(userMarker)userMarker.setLatLng([lat,lon]);else userMarker=L.marker([lat,lon]).addTo(map).bindPopup("You are here")}
+   cb?.({lat,lon});
+  },()=>{announce("Could not get your location. Please allow location access.");cb?.(null)},{enableHighAccuracy:true,timeout:12000,maximumAge:30000});
  }
  locate(l=>{if(l)announce("Location found. Tap Find Nearby Hotels to search.")});
  find.addEventListener("click",()=>locate(l=>{if(l)search(l.lat,l.lon)}));
  function search(lat,lon){
   announce("Searching for nearby hotels…");
   const q='[out:json][timeout:15];(node["tourism"="hotel"](around:3000,'+lat+','+lon+');way["tourism"="hotel"](around:3000,'+lat+','+lon+'););out center;';
-  fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:q}).then(r=>r.json()).then(d=>render(lat,lon,d.elements||[])).catch(()=>announce("Could not load hotel data. Please try again."));
+  fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:q}).then(r=>{if(!r.ok)throw new Error("request");return r.json()}).then(d=>render(lat,lon,d.elements||[])).catch(()=>announce("Could not load hotel data. Please try again."));
  }
  function render(lat,lon,elements){
   hotelMarkers.forEach(m=>map?.removeLayer(m));hotelMarkers=[];list.innerHTML="";
@@ -48,8 +63,7 @@ window.addEventListener("DOMContentLoaded",function(){
   arr.forEach(h=>{
    const m=L.marker([h.lat,h.lon]).addTo(map).bindPopup(h.name);hotelMarkers.push(m);
    const item=document.createElement("div");item.className="hotel";item.setAttribute("role","listitem");
-   const info=document.createElement("div");info.className="hotel-info";const title=document.createElement("div");title.className="hotel-title";title.textContent=h.name;
-   const distance=document.createElement("div");distance.className="hotel-distance";distance.textContent=h.d.toFixed(2)+" km away";info.append(title,distance);
+   const info=document.createElement("div");info.className="hotel-info";const title=document.createElement("div");title.className="hotel-title";title.textContent=h.name;const distance=document.createElement("div");distance.className="hotel-distance";distance.textContent=h.d.toFixed(2)+" km away";info.append(title,distance);
    const btn=document.createElement("button");btn.className="open-btn";btn.textContent="Open in Maps";btn.type="button";btn.onclick=()=>window.open("https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(h.lat+","+h.lon),"_blank");
    item.append(info,btn);list.appendChild(item);
   });
