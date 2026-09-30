@@ -49,16 +49,29 @@ window.addEventListener("DOMContentLoaded",function(){
  function announce(t){status.textContent=t}
  function locate(cb){
   if(!navigator.geolocation){announce("Geolocation is not supported on this device.");cb?.(null);return}
-  navigator.geolocation.getCurrentPosition(p=>{
-   const lat=p.coords.latitude,lon=p.coords.longitude;
+  announce("Finding your location…");
+
+  const handleSuccess=p=>{
+   const lat=p.coords.latitude,lon=p.coords.longitude,accuracy=p.coords.accuracy;
    if(map){
     const pos=[lon,lat];
     if(userMarker)userMarker.setLngLat(pos);
     else userMarker=new maplibregl.Marker({element:markerElement("user"),anchor:"center"}).setLngLat(pos).setPopup(new maplibregl.Popup({offset:18}).setText("You are here")).addTo(map);
     map.flyTo({center:pos,zoom:15,duration:700});
    }
-   cb?.({lat,lon});
-  },()=>{announce("Could not get your location. Please allow location access.");cb?.(null)},{enableHighAccuracy:true,timeout:12000,maximumAge:30000});
+   cb?.({lat,lon,accuracy});
+  };
+
+  const fallback=()=>navigator.geolocation.getCurrentPosition(handleSuccess,()=>{
+   announce("Could not get your location. Please check that this site is allowed to use your location in Chrome.");
+   cb?.(null);
+  },{enableHighAccuracy:true,timeout:10000,maximumAge:5000});
+
+  navigator.geolocation.getCurrentPosition(handleSuccess,fallback,{
+   enableHighAccuracy:false,
+   timeout:5000,
+   maximumAge:60000
+  });
  }
  locate(l=>{if(l)announce("Location found. Tap Find Nearby Hotels to search.")});
  find.addEventListener("click",()=>locate(l=>{if(l)search(l.lat,l.lon)}));
