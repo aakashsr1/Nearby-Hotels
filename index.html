@@ -21,7 +21,7 @@
     </a>
 
     <nav class="top-buttons" aria-label="Site controls">
-      <a href="cwsn.html" class="cwsn-btn">Accessibility</a>
+      <a href="cwsn.html" class="cwsn-btn">CWSN Mode</a>
       <button id="themeToggle" class="theme-btn" type="button" aria-label="Toggle color theme">
         <span class="theme-icon" aria-hidden="true">◐</span>
         <span class="theme-label">Dark</span>
@@ -57,7 +57,10 @@
           <span class="section-kicker">EXPLORE</span>
           <h2>Map</h2>
         </div>
-        <span class="map-badge">Live location</span>
+        <button id="locateBtn" class="location-btn" type="button">
+          <span aria-hidden="true">⌾</span>
+          <span>My location</span>
+        </button>
       </div>
       <div id="map" class="map-box" aria-label="Map showing your location and nearby hotels"></div>
     </section>
