@@ -1,79 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#0b1220" />
-  <meta name="description" content="Find hotels near your current location." />
-  <title>NearbyHotels — Find stays around you</title>
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="leaflet.css" />
-  <script>
-    (function () {
-      try {
-        if (localStorage.getItem("theme") === "dark") {
-          document.documentElement.classList.add("dark-preload");
-        }
-      } catch (e) {}
-    })();
-  </script>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#0b1220"><meta name="description" content="Find hotels near your current location.">
+<title>NearbyHotels — Find stays around you</title>
+<link rel="stylesheet" href="styles.css?v=5"><link rel="stylesheet" href="leaflet.css?v=5">
+<script>(function(){try{if(localStorage.getItem("theme")==="dark")document.documentElement.classList.add("dark-preload")}catch(e){}})();</script>
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="index.html" aria-label="NearbyHotels home">
-      <img src="logo.png" class="logo" alt="NearbyHotels logo" />
-      <div class="brand-copy">
-        <span class="brand-name">NearbyHotels</span>
-        <span class="brand-tagline">Stay close. Travel easy.</span>
-      </div>
-    </a>
-    <nav class="top-buttons" aria-label="Site controls">
-      <a href="cwsn.html" class="cwsn-btn">Accessibility</a>
-      <button id="themeToggle" class="theme-btn" type="button" aria-label="Switch to dark mode">
-        <span class="theme-icon" aria-hidden="true">◐</span>
-        <span class="theme-label">Dark</span>
-      </button>
-    </nav>
-  </header>
-
-  <main class="page">
-    <section class="hero card">
-      <div class="hero-copy">
-        <span class="eyebrow">NEARBY HOTEL FINDER</span>
-        <h1>Find a stay<br /><span>near you.</span></h1>
-        <p>Use your live location to discover real hotels nearby, see them on the map, and open directions in Google Maps.</p>
-      </div>
-      <div class="hero-action">
-        <button id="findBtn" class="primary-btn" type="button">
-          <span class="button-icon" aria-hidden="true">⌖</span>
-          <span>Find nearby hotels</span>
-        </button>
-        <p id="status" class="status" role="status" aria-live="polite">Getting your live location…</p>
-      </div>
-    </section>
-
-    <section class="section-card card">
-      <div class="section-heading">
-        <div><span class="section-kicker">EXPLORE</span><h2>Map</h2></div>
-        <button id="locateBtn" class="location-btn" type="button" aria-label="Center map on my location">
-          <span aria-hidden="true">⌾</span><span>My location</span>
-        </button>
-      </div>
-      <div id="map" class="map-box" aria-label="Map showing your location and nearby hotels"></div>
-    </section>
-
-    <section class="section-card card">
-      <div class="section-heading">
-        <div><span class="section-kicker">RESULTS</span><h2>Nearby hotels</h2></div>
-        <span class="result-hint">Sorted by distance</span>
-      </div>
-      <div id="hotelsList" class="hotels-list"></div>
-    </section>
-  </main>
-
-  <footer><span>NearbyHotels</span><span class="footer-dot">•</span><span>Made by Aakash</span></footer>
-
-  <script src="leaflet.js"></script>
-  <script src="script.js"></script>
-</body>
-</html>
+<header class="topbar">
+<a class="brand" href="index.html" aria-label="NearbyHotels home"><img src="logo.png" class="logo" alt="NearbyHotels logo"><div class="brand-copy"><span class="brand-name">NearbyHotels</span><span class="brand-tagline">Stay close. Travel easy.</span></div></a>
+<nav class="top-buttons" aria-label="Site controls"><a href="cwsn.html" class="cwsn-btn">Accessibility</a><button id="themeToggle" class="theme-btn" type="button" aria-label="Switch to dark mode"><span class="theme-icon" aria-hidden="true">◐</span><span class="theme-label">Dark</span></button></nav>
+</header>
+<main class="page">
+<section class="hero card"><div class="hero-copy"><span class="eyebrow">NEARBY HOTEL FINDER</span><h1>Find a stay<br><span>near you.</span></h1><p>Use your live location to discover real hotels nearby, see them on the map, and open directions in Google Maps.</p></div><div class="hero-action"><button id="findBtn" class="primary-btn" type="button"><span class="button-icon" aria-hidden="true">⌖</span><span>Find nearby hotels</span></button><p id="status" class="status" role="status" aria-live="polite">Getting your live location…</p></div></section>
+<section class="section-card card"><div class="section-heading"><div><span class="section-kicker">EXPLORE</span><h2>Map</h2></div><button id="locateBtn" class="location-btn" type="button" aria-label="Center map on my location"><span aria-hidden="true">⌾</span><span>My location</span></button></div><div id="map" class="map-box" aria-label="Map showing your location and nearby hotels"></div></section>
+<section class="section-card card"><div class="section-heading"><div><span class="section-kicker">RESULTS</span><h2>Nearby hotels</h2></div><span class="result-hint">Sorted by distance</span></div><div id="hotelsList" class="hotels-list"></div></section>
+</main><footer><span>NearbyHotels</span><span class="footer-dot">•</span><span>Made by Aakash</span></footer>
+<script src="leaflet.js?v=5"></script><script src="script.js?v=5"></script>
+</body></html>
