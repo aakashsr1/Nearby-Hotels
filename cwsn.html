@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NearbyHotels – CWSN Mode</title>
+  <title>NearbyHotels – Accessibility</title>
 
   <link rel="stylesheet" href="cwsn.css" />
   <link rel="stylesheet" href="leaflet.css" />
@@ -13,21 +13,22 @@
 <body>
   <a href="#main" class="skip-link">Skip to main content</a>
 
-  <header class="topbar" role="banner" aria-label="CWSN header">
-    <div class="brand">
+  <header class="topbar" role="banner" aria-label="Accessibility header">
+    <a class="brand" href="index.html" aria-label="NearbyHotels home">
       <img src="logo.png" class="logo" alt="NearbyHotels logo" />
-      <span>NearbyHotels <span class="sr-only">CWSN mode</span></span>
-    </div>
+      <span>NearbyHotels <span class="sr-only">Accessibility mode</span></span>
+    </a>
 
-    <nav class="top-controls" role="navigation" aria-label="CWSN controls">
-      <a href="index.html" class="theme-btn" aria-label="Switch to normal mode">Normal</a>
-      <button id="themeToggle" class="theme-btn" aria-pressed="false" aria-label="Toggle dark mode">Dark</button>
-      <button id="contrastToggle" class="theme-btn" aria-pressed="false" aria-label="Enable high contrast">High Contrast</button>
+    <nav class="top-controls" role="navigation" aria-label="Accessibility controls">
+      <a href="index.html" class="theme-btn">Normal</a>
+      <button id="themeToggle" class="theme-btn" type="button" aria-pressed="false" aria-label="Toggle dark mode">Dark</button>
+      <button id="contrastToggle" class="theme-btn" type="button" aria-pressed="false" aria-label="Enable high contrast">High Contrast</button>
     </nav>
   </header>
 
   <main id="main" role="main" tabindex="-1">
     <section class="card" aria-label="Find nearby hotels">
+      <span class="section-kicker">ACCESSIBILITY</span>
       <h1>Find a Hotel Near You</h1>
 
       <ol class="steps">
@@ -36,7 +37,9 @@
         <li>We will show the <strong>nearest hotels</strong> around you.</li>
       </ol>
 
-      <button id="findBtn" class="primary-btn" aria-label="Find nearby hotels using your current location"> Find Nearby Hotels</button>
+      <button id="findBtn" class="primary-btn" type="button" aria-label="Find nearby hotels using your current location">
+        📍 Find Nearby Hotels
+      </button>
 
       <p id="status" class="status" role="status" aria-live="polite" tabindex="-1">
         Getting your live location...
