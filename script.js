@@ -1,408 +1,159 @@
-// NearbyHotels — location centering, theme switching and hotel discovery
-window.addEventListener("load", function () {
-  const statusEl = document.getElementById("status");
-  const hotelsListEl = document.getElementById("hotelsList");
-  const findBtn = document.getElementById("findBtn");
-  const locateBtn = document.getElementById("locateBtn");
-  const themeToggle = document.getElementById("themeToggle");
-  const themeLabel = themeToggle.querySelector(".theme-label");
-  const themeIcon = themeToggle.querySelector(".theme-icon");
+window.addEventListener("DOMContentLoaded", function () {
+  const statusEl=document.getElementById("status"), hotelsListEl=document.getElementById("hotelsList");
+  const findBtn=document.getElementById("findBtn"), locateBtn=document.getElementById("locateBtn"), themeToggle=document.getElementById("themeToggle");
+  const themeLabel=themeToggle?.querySelector(".theme-label"), themeIcon=themeToggle?.querySelector(".theme-icon");
+  let map=null,userMarker=null,hotelMarkers=[],latestLocation=null,currentTileLayer=null,locationWatchId=null;
 
-  let map;
-  let userMarker;
-  let hotelMarkers = [];
-  let latestLocation = null;
-  let locationWatchId = null;
-  let currentTileLayer = null;
+  const OVERPASS_URL="https://overpass-api.de/api/interpreter";
+  const HOTEL_RADIUS=3000;
+  const LIGHT_TILES="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+  const DARK_TILES="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
 
-  const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
-  const HOTEL_RADIUS = 3000;
-  const LIGHT_TILES = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-  const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
+  function storageGet(key){try{return localStorage.getItem(key)}catch(e){return null}}
+  function storageSet(key,val){try{localStorage.setItem(key,val)}catch(e){}}
 
-  /* ---------- THEME ---------- */
-
-  function applyTheme() {
-    const isDark = document.body.classList.contains("dark");
-    themeLabel.textContent = isDark ? "Light" : "Dark";
-    themeIcon.textContent = isDark ? "☀" : "◐";
-    themeToggle.setAttribute(
-      "aria-label",
-      isDark ? "Switch to light theme" : "Switch to dark theme"
-    );
-
-    const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (metaTheme) metaTheme.setAttribute("content", isDark ? "#070b12" : "#0b1220");
-
+  function applyTheme(){
+    const dark=document.body.classList.contains("dark");
+    document.documentElement.classList.toggle("dark-preload",dark);
+    if(themeLabel) themeLabel.textContent=dark?"Light":"Dark";
+    if(themeIcon) themeIcon.textContent=dark?"☀":"◐";
+    themeToggle?.setAttribute("aria-label",dark?"Switch to light mode":"Switch to dark mode");
+    const meta=document.querySelector('meta[name="theme-color"]');
+    if(meta) meta.setAttribute("content",dark?"#070b12":"#0b1220");
     updateMapTiles();
   }
 
-  function initTheme() {
-    const saved = localStorage.getItem("theme");
-
-    if (saved === "dark") {
-      document.body.classList.add("dark");
-    } else if (saved === "light") {
-      document.body.classList.remove("dark");
-    } else {
-      document.body.classList.remove("dark");
-    }
-
+  function initTheme(){
+    const saved=storageGet("theme");
+    const dark=saved==="dark" || (!saved && document.documentElement.classList.contains("dark-preload"));
+    document.body.classList.toggle("dark",dark);
     applyTheme();
   }
 
-  function updateMapTiles() {
-    if (!map || typeof L === "undefined") return;
-
-    const isDark = document.body.classList.contains("dark");
-    const tileUrl = isDark ? DARK_TILES : LIGHT_TILES;
-
-    if (!currentTileLayer || currentTileLayer._url !== tileUrl) {
-      if (currentTileLayer) map.removeLayer(currentTileLayer);
-
-      currentTileLayer = L.tileLayer(tileUrl, {
-        maxZoom: 19,
-        attribution: "© OpenStreetMap contributors"
-      }).addTo(map);
+  function updateMapTiles(){
+    if(!map || typeof L==="undefined") return;
+    const url=document.body.classList.contains("dark")?DARK_TILES:LIGHT_TILES;
+    if(!currentTileLayer || currentTileLayer._url!==url){
+      if(currentTileLayer) map.removeLayer(currentTileLayer);
+      currentTileLayer=L.tileLayer(url,{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(map);
     }
+    setTimeout(()=>map.invalidateSize(true),80);
+  }
 
-    setTimeout(() => map.invalidateSize(true), 100);
+  function initMap(){
+    if(typeof L==="undefined"){
+      if(statusEl) statusEl.textContent="Map library could not load. Refresh once and try again.";
+      return;
+    }
+    map=L.map("map",{zoomControl:true,attributionControl:true}).setView([20,0],2);
+    updateMapTiles();
+    setTimeout(()=>map.invalidateSize(true),100);
   }
 
   initTheme();
-
-  themeToggle.addEventListener("click", function () {
-    const isDark = document.body.classList.toggle("dark");
-    localStorage.setItem("theme", isDark ? "dark" : "light");
+  themeToggle?.addEventListener("click",()=>{
+    document.body.classList.toggle("dark");
+    storageSet("theme",document.body.classList.contains("dark")?"dark":"light");
     applyTheme();
   });
-
-  /* ---------- MAP ---------- */
-
-  function initMap() {
-    if (typeof L === "undefined") {
-      statusEl.textContent = "Map library failed to load. Check your internet.";
-      return;
-    }
-
-    map = L.map("map").setView([20, 0], 2);
-    updateMapTiles();
-  }
-
   initMap();
 
-  /* ---------- LOCATION ---------- */
-
-  function updateUserMarker(lat, lon, shouldCenter) {
-    latestLocation = { lat, lon };
-
-    if (!map) return;
-
-    if (userMarker) {
-      userMarker.setLatLng([lat, lon]);
-    } else {
-      userMarker = L.marker([lat, lon])
-        .addTo(map)
-        .bindPopup("You are here");
-    }
-
-    if (shouldCenter) {
-      map.setView([lat, lon], 16, { animate: true });
-    }
+  function updateUserMarker(lat,lon,center){
+    latestLocation={lat,lon};
+    if(!map) return;
+    if(userMarker) userMarker.setLatLng([lat,lon]);
+    else userMarker=L.marker([lat,lon]).addTo(map).bindPopup("You are here");
+    if(center) map.setView([lat,lon],15,{animate:true});
   }
 
-  function locationOptions(quick) {
-    return {
-      enableHighAccuracy: !quick,
-      timeout: quick ? 3500 : 8000,
-      maximumAge: quick ? 60000 : 5000
-    };
+  function getCurrentLocation(center,onSuccess){
+    if(!navigator.geolocation){statusEl.textContent="Geolocation is not supported on this device.";onSuccess?.(null);return}
+    const options={enableHighAccuracy:false,timeout:5000,maximumAge:60000};
+    navigator.geolocation.getCurrentPosition(pos=>{
+      const l={lat:pos.coords.latitude,lon:pos.coords.longitude,accuracy:pos.coords.accuracy};
+      updateUserMarker(l.lat,l.lon,center);onSuccess?.(l);
+    },()=>{
+      navigator.geolocation.getCurrentPosition(pos=>{
+        const l={lat:pos.coords.latitude,lon:pos.coords.longitude,accuracy:pos.coords.accuracy};
+        updateUserMarker(l.lat,l.lon,center);onSuccess?.(l);
+      },()=>{statusEl.textContent="Could not get your location. Please allow location access.";onSuccess?.(null)},
+      {enableHighAccuracy:true,timeout:10000,maximumAge:5000});
+    },options);
   }
 
-  function getCurrentLocation(shouldCenter, onSuccess) {
-    if (!navigator.geolocation) {
-      statusEl.textContent = "Geolocation is not supported on this device.";
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      function (pos) {
-        const location = {
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude,
-          accuracy: pos.coords.accuracy
-        };
-        updateUserMarker(location.lat, location.lon, shouldCenter);
-        if (onSuccess) onSuccess(location);
-      },
-      function () {
-        navigator.geolocation.getCurrentPosition(
-          function (pos) {
-            const location = {
-              lat: pos.coords.latitude,
-              lon: pos.coords.longitude,
-              accuracy: pos.coords.accuracy
-            };
-            updateUserMarker(location.lat, location.lon, shouldCenter);
-            if (onSuccess) onSuccess(location);
-          },
-          function (err) {
-            console.error(err);
-            statusEl.textContent =
-              "Could not get your location. Please allow location access.";
-            if (onSuccess) onSuccess(null);
-          },
-          locationOptions(false)
-        );
-      },
-      locationOptions(true)
-    );
+  function startLocationUpdates(){
+    if(!navigator.geolocation || locationWatchId!==null) return;
+    locationWatchId=navigator.geolocation.watchPosition(pos=>{
+      updateUserMarker(pos.coords.latitude,pos.coords.longitude,false);
+    },()=>{}, {enableHighAccuracy:true,maximumAge:10000,timeout:10000});
   }
 
-  function startLocationUpdates() {
-    if (!navigator.geolocation || locationWatchId !== null) return;
-
-    locationWatchId = navigator.geolocation.watchPosition(
-      function (pos) {
-        updateUserMarker(
-          pos.coords.latitude,
-          pos.coords.longitude,
-          false
-        );
-      },
-      function (err) {
-        console.warn("Location watch:", err);
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 10000,
-        timeout: 10000
-      }
-    );
-  }
-
-  function locateMe() {
-    locateBtn.disabled = true;
-    statusEl.textContent = "Finding your location…";
-
-    if (latestLocation && map) {
-      map.setView([latestLocation.lat, latestLocation.lon], 16, {
-        animate: true
-      });
-    }
-
-    getCurrentLocation(true, function (location) {
-      locateBtn.disabled = false;
-
-      if (location) {
-        const accuracy = Math.round(location.accuracy || 0);
-        statusEl.textContent =
-          accuracy > 0
-            ? "You're here • accuracy about " + accuracy + " m."
-            : "Centered on your current location.";
-      }
+  function locateMe(){
+    locateBtn.disabled=true;statusEl.textContent="Finding your location…";
+    if(latestLocation&&map) map.setView([latestLocation.lat,latestLocation.lon],15,{animate:true});
+    getCurrentLocation(true,l=>{
+      locateBtn.disabled=false;
+      if(l) statusEl.textContent="You're here • accuracy about "+Math.round(l.accuracy||0)+" m.";
     });
   }
+  locateBtn?.addEventListener("click",locateMe);
 
-  locateBtn.addEventListener("click", locateMe);
+  getCurrentLocation(false,l=>{
+    if(l){statusEl.textContent="Location ready. Tap Find nearby hotels.";startLocationUpdates()}
+  });
 
-  function getLiveLocationOnLoad() {
-    statusEl.textContent = "Getting your location…";
-
-    getCurrentLocation(false, function (location) {
-      if (location) {
-        statusEl.textContent = "Location ready. Tap Find nearby hotels.";
-        startLocationUpdates();
-      }
-    });
-  }
-
-  getLiveLocationOnLoad();
-
-  /* ---------- HOTEL SEARCH ---------- */
-
-  findBtn.addEventListener("click", function () {
-    findBtn.disabled = true;
-    findBtn.setAttribute("aria-busy", "true");
-    statusEl.textContent = "Finding your location…";
-
-    getCurrentLocation(true, function (location) {
-      if (!location) {
-        findBtn.disabled = false;
-        findBtn.removeAttribute("aria-busy");
-        return;
-      }
-
-      fetchNearbyHotels(location.lat, location.lon);
+  findBtn?.addEventListener("click",()=>{
+    findBtn.disabled=true;statusEl.textContent="Finding your location…";
+    getCurrentLocation(true,l=>{
+      if(!l){findBtn.disabled=false;return}
+      fetchNearbyHotels(l.lat,l.lon);
     });
   });
 
-  function fetchNearbyHotels(lat, lon) {
-    statusEl.textContent = "Searching nearby hotels…";
-
-    const query =
-      '[out:json][timeout:10];(' +
-      'node["tourism"="hotel"](around:' + HOTEL_RADIUS + "," + lat + "," + lon + ");" +
-      'way["tourism"="hotel"](around:' + HOTEL_RADIUS + "," + lat + "," + lon + ");' +
-      ");out center;";
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 11000);
-
-    fetch(OVERPASS_URL, {
-      method: "POST",
-      body: query,
-      signal: controller.signal
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Hotel data request failed");
-        return res.json();
+  function fetchNearbyHotels(lat,lon){
+    statusEl.textContent="Searching nearby hotels…";
+    const query='[out:json][timeout:10];(node["tourism"="hotel"](around:'+HOTEL_RADIUS+','+lat+','+lon+');way["tourism"="hotel"](around:'+HOTEL_RADIUS+','+lat+','+lon+'););out center;';
+    const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),11000);
+    fetch(OVERPASS_URL,{method:"POST",body:query,signal:controller.signal})
+      .then(r=>{if(!r.ok)throw new Error("request");return r.json()})
+      .then(data=>{
+        const hotels=(data.elements||[]).filter(e=>e.tags?.tourism==="hotel").map(e=>({
+          lat:(e.center&&e.center.lat)||e.lat,lon:(e.center&&e.center.lon)||e.lon,name:e.tags.name||"Unnamed Hotel"
+        })).filter(h=>Number.isFinite(h.lat)&&Number.isFinite(h.lon));
+        renderHotels(lat,lon,hotels);
       })
-      .then((data) => {
-        const hotels = (data.elements || [])
-          .filter((el) => el.tags && el.tags.tourism === "hotel")
-          .map((el) => {
-            const hotelLat = (el.center && el.center.lat) || el.lat;
-            const hotelLon = (el.center && el.center.lon) || el.lon;
-
-            return {
-              lat: hotelLat,
-              lon: hotelLon,
-              name: el.tags.name || "Unnamed Hotel"
-            };
-          })
-          .filter(
-            (hotel) =>
-              Number.isFinite(hotel.lat) && Number.isFinite(hotel.lon)
-          );
-
-        renderHotels(lat, lon, hotels);
-      })
-      .catch((err) => {
-        console.error(err);
-
-        statusEl.textContent =
-          err.name === "AbortError"
-            ? "Hotel search took too long. Please try again."
-            : "Could not load hotel data. Please try again.";
-      })
-      .finally(() => {
-        clearTimeout(timeoutId);
-        findBtn.disabled = false;
-        findBtn.removeAttribute("aria-busy");
-      });
+      .catch(e=>{statusEl.textContent=e.name==="AbortError"?"Hotel search took too long. Please try again.":"Could not load hotel data. Please try again."})
+      .finally(()=>{clearTimeout(timer);findBtn.disabled=false});
   }
 
-  /* ---------- RENDER HOTELS ---------- */
-
-  function renderHotels(userLat, userLon, hotels) {
-    hotelMarkers.forEach((marker) => {
-      if (map) map.removeLayer(marker);
-    });
-
-    hotelMarkers = [];
-    hotelsListEl.innerHTML = "";
-
-    if (!hotels.length) {
-      statusEl.textContent =
-        "No hotels found within 3 km. Try again in a busier area.";
-      return;
+  function renderHotels(userLat,userLon,hotels){
+    hotelMarkers.forEach(m=>map?.removeLayer(m));hotelMarkers=[];hotelsListEl.innerHTML="";
+    if(!hotels.length){statusEl.textContent="No hotels found within 3 km. Try again in a busier area.";return}
+    const withDistance=hotels.map(h=>({...h,dist:distanceInKm(userLat,userLon,h.lat,h.lon)})).sort((a,b)=>a.dist-b.dist);
+    const visible=withDistance.slice(0,5);
+    if(map){
+      const bounds=L.latLngBounds(visible.map(h=>[h.lat,h.lon]));
+      if(userMarker) bounds.extend(userMarker.getLatLng());
+      map.fitBounds(bounds.pad(.2),{maxZoom:16,animate:true});
     }
-
-    const hotelIcon = L.icon({
-      iconUrl: "images/hotel-icon.png",
-      iconRetinaUrl: "images/hotel-icon.png",
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowUrl:
-        "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-      shadowSize: [41, 41]
+    const hotelIcon=L.icon({iconUrl:"images/hotel-icon.png",iconRetinaUrl:"images/hotel-icon.png",iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34]});
+    visible.forEach(h=>{
+      if(map) hotelMarkers.push(L.marker([h.lat,h.lon],{icon:hotelIcon}).addTo(map).bindPopup(escapeHtml(h.name)));
+      const item=document.createElement("div");item.className="hotel";
+      const info=document.createElement("div");info.className="hotel-info";
+      const title=document.createElement("div");title.className="hotel-title";title.textContent=h.name;
+      const distance=document.createElement("div");distance.className="hotel-distance";distance.textContent=h.dist.toFixed(2)+" km away";
+      const btn=document.createElement("button");btn.className="open-btn";btn.type="button";btn.textContent="Open in Maps";
+      btn.addEventListener("click",()=>window.open("https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(h.lat+","+h.lon),"_blank","noopener,noreferrer"));
+      info.append(title,distance);item.append(info,btn);hotelsListEl.appendChild(item);
     });
-
-    const withDistance = hotels
-      .map((hotel) => ({
-        ...hotel,
-        dist: distanceInKm(userLat, userLon, hotel.lat, hotel.lon)
-      }))
-      .sort((a, b) => a.dist - b.dist);
-
-    const maxToShow = Math.min(5, withDistance.length);
-
-    statusEl.textContent =
-      "Found " +
-      withDistance.length +
-      " hotels, showing the closest " +
-      maxToShow +
-      ".";
-
-    const visibleHotels = withDistance.slice(0, maxToShow);
-
-    if (map && visibleHotels.length) {
-      const bounds = L.latLngBounds(
-        visibleHotels.map((hotel) => [hotel.lat, hotel.lon])
-      );
-
-      if (userMarker) bounds.extend(userMarker.getLatLng());
-
-      map.fitBounds(bounds.pad(0.2), {
-        maxZoom: 16,
-        animate: true
-      });
-    }
-
-    visibleHotels.forEach((hotel) => {
-      if (map) {
-        const marker = L.marker([hotel.lat, hotel.lon], {
-          icon: hotelIcon
-        })
-          .addTo(map)
-          .bindPopup(hotel.name);
-
-        hotelMarkers.push(marker);
-      }
-
-      const item = document.createElement("div");
-      item.className = "hotel";
-      item.innerHTML =
-        '<div class="hotel-info">' +
-        '<div class="hotel-title"></div>' +
-        '<div class="hotel-distance"></div>' +
-        "</div>" +
-        '<button class="open-btn" type="button">Open in Maps</button>';
-
-      item.querySelector(".hotel-title").textContent = hotel.name;
-      item.querySelector(".hotel-distance").textContent =
-        hotel.dist.toFixed(2) + " km away";
-
-      item.querySelector(".open-btn").addEventListener("click", function () {
-        const url =
-          "https://www.google.com/maps/search/?api=1&query=" +
-          encodeURIComponent(hotel.lat + "," + hotel.lon);
-
-        window.open(url, "_blank", "noopener,noreferrer");
-      });
-
-      hotelsListEl.appendChild(item);
-    });
+    statusEl.textContent="Found "+withDistance.length+" hotels, showing the closest "+visible.length+".";
   }
 
-  function distanceInKm(lat1, lon1, lat2, lon2) {
-    function toRad(value) {
-      return (value * Math.PI) / 180;
-    }
-
-    const R = 6371;
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(toRad(lat1)) *
-        Math.cos(toRad(lat2)) *
-        Math.sin(dLon / 2) ** 2;
-
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+  function distanceInKm(a,b,c,d){
+    const r=Math.PI/180,R=6371,dl=(c-a)*r,do_=(d-b)*r;
+    const x=Math.sin(dl/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(do_/2)**2;
+    return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
   }
+  function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
 });
